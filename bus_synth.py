@@ -15,7 +15,7 @@ from oscillator_manager import OscillatorManager
 
 class BusSynth:
     def __init__(self):
-        self.API_KEY = "I7Ozj1IWrV2b2owUdGqJi1CVJ4FFi5xm9fKdj5UB"
+        self.API_KEY = "YOUR_API_KEY"
         self.BUS_URL = "https://api.opendata.metlink.org.nz/v1/gtfs-rt/vehiclepositions"
         self.STOP_URL = "https://api.opendata.metlink.org.nz/v1/gtfs/stops"
         self.buses = {}

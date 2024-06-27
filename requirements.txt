@@ -1,0 +1,6 @@
+numpy
+pyo
+asyncio
+matplotlib
+websockets
+requests

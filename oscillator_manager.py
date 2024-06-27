@@ -1,6 +1,5 @@
 import time
 import multiprocessing
-from random import uniform
 import numpy as np
 from pyo import Server, SineLoop, Pan
 

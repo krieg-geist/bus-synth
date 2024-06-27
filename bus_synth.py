@@ -6,8 +6,6 @@ import websockets
 import http.server
 import socketserver
 import json
-import folium
-import time
 import requests
 from threading import Thread
 from typing import Dict, Any
@@ -65,8 +63,7 @@ class BusSynth:
 
                 if bus_id in self.buses:
                     self.buses[bus_id].update_position(position)
-                    self.osc.set_oscillator_ll(bus_id, self.buses[bus_id].lat_lon)
-                    self.osc.set_oscillator_pan(bus_id, self.buses[bus_id].bearing)
+                    self.osc.set_oscillator_bus(bus_id, self.buses[bus_id].lat_lon, self.buses[bus_id].bearing)
                 else:
                     self.buses[bus_id] = Bus(bus_id, route_id, position)
                     self.osc.add_oscillator(bus_id)

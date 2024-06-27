@@ -53,11 +53,11 @@ Open a web browser and navigate to `http://localhost:8000` to view the bus map.
 3. **HTTP Server**: Serves the web page for visualization
 4. **Audio Synthesis**: Generates sound based on bus movements (via `OscillatorManager`)
 
-## Customization
-
-- Adjust audio parameters in `oscillator_manager.py`
-- Modify map appearance and behavior in `index.html`
-- Change update frequency by altering the sleep duration in the `bus_updates` method
+## Todo:
+- Make it actually sound good
+- Trigger audio events when busses reach stop
+- Trigger audio events based on route progress
+- Smooth audio transitions
 
 ## Contributing
 

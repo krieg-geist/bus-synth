@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Real-time Bus Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://rawgit.com/bbecquet/Leaflet.RotatedMarker/master/leaflet.rotatedMarker.js"></script>
+    <style>
+        #map { width: 100%; height: 600px; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        var map;
+        var bus_markers = {};
+
+        var socket = new WebSocket("ws://localhost:8765");
+
+        initializeMap(); // Initialize the map only once
+
+        socket.onmessage = function(event) {
+            var data = JSON.parse(event.data);
+            if (data.type === "bus_update") {
+                updateBuses(JSON.parse(data.data));
+            }
+            else if (data.type === "stop_update") {
+                updateStops(JSON.parse(data.data));
+            }
+        };
+
+        function initializeMap() {
+            map = L.map('map').setView([0, 0], 2); // Center the map at (0, 0) with zoom level 2
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(map);
+        }
+
+        function createArrowIcon(color) {
+            var svg = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                    <polygon points="50,0 0,100 100,100" style="fill:${color};opacity:0.8;"/>
+                </svg>`;
+            return L.divIcon({
+                className: 'custom-icon',
+                html: svg,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+        }
+
+        function updateStops(markerData) {
+            markerData.forEach(function(stop) {
+                var latlng = [stop.lat, stop.lon];
+
+                L.circleMarker(latlng, {
+                    color: stop.color,
+                    radius: 2,
+                    opacity: 0.4,
+                }).addTo(map).bindTooltip(stop.tooltip);
+            });
+        }
+
+        function updateBuses(markerData) {
+            var bounds = [];
+
+            markerData.forEach(function(bus) {
+                var latlng = [bus.lat, bus.lon];
+                var bearing = bus.bearing;
+
+                if (bus_markers[bus.id]) {
+                    bus_markers[bus.id].setLatLng(latlng);
+                    bus_markers[bus.id].setRotationAngle(bearing); // Ensure this is called on the marker
+                } else {
+                    var icon = createArrowIcon(bus.color);
+                    bus_markers[bus.id] = L.marker(latlng, {
+                        icon: icon,
+                        rotationAngle: bearing,
+                        rotationOrigin: 'center center'
+                    }).addTo(map);
+                }
+                bus_markers[bus.id].bindTooltip(bus.tooltip);
+                bounds.push(latlng);
+            });
+
+            // Remove bus_markers for buses that are no longer present
+            Object.keys(bus_markers).forEach(function(id) {
+                if (!markerData.some(bus => bus.id === id)) {
+                    map.removeLayer(bus_markers[id]);
+                    delete bus_markers[id];
+                }
+            });
+
+            if (bounds.length) {
+                map.fitBounds(bounds);
+            }
+        }
+
+        // Initialize the map when the page loads
+        document.addEventListener('DOMContentLoaded', initializeMap);
+    </script>
+</body>
+</html>

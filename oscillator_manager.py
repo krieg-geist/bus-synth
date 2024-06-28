@@ -1,22 +1,33 @@
 import time
 import multiprocessing
 import numpy as np
-from pyo import Server, SineLoop, Pan
+from pyo import Server, SineLoop, Pan, SigTo
 
 class Oscillator:
-    def __init__(self, freq=440, feedback=0.1, mul=0.005, pan=0.5):
-        self.osc = SineLoop(freq=freq, feedback=feedback, mul=mul)
-        self.pan = Pan(self.osc, outs=2, pan=pan).out()
+    def __init__(self, freq=440, feedback=0.1, mul=0.005, pan=0.5, loop_rate=10):
+        self.freq = SigTo(freq, time=loop_rate)
+        self.feedback = SigTo(feedback, time=loop_rate)
+        self.mul = SigTo(mul, time=loop_rate)
+        self.pan_value = SigTo(pan, time=loop_rate)
+
+        self.loop_rate = loop_rate
+        
+        self.osc = SineLoop(freq=self.freq, feedback=self.feedback, mul=self.mul)
+        self.pan = Pan(self.osc, outs=2, pan=self.pan_value).out()
 
     def set(self, freq=None, amp=None, pan=None, feedback=None):
         if freq is not None:
-            self.osc.freq = freq
+            self.freq.time = self.loop_rate
+            self.freq.value = freq
         if amp is not None:
-            self.osc.mul = amp
+            self.mul.time = self.loop_rate
+            self.mul.value = amp
         if pan is not None:
-            self.pan.pan = pan
+            self.pan_value.time = self.loop_rate
+            self.pan_value.value = pan
         if feedback is not None:
-            self.osc.feedback = feedback
+            self.feedback.time = self.loop_rate
+            self.feedback.value = feedback
 
     def stop(self):
         self.osc.stop()

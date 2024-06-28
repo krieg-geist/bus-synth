@@ -64,7 +64,7 @@ class Group(multiprocessing.Process):
         self._terminated = True
 
 class OscillatorManager:
-    def __init__(self, range=((-41.38029, 174.69041), (-41.39615, 174.71788))):
+    def __init__(self, range=((-41.4, 174.6), (-41.2, 174.9))):
         multiprocessing.freeze_support()
         self.group = Group()
         self.group.start()
@@ -91,9 +91,9 @@ class OscillatorManager:
 
     def set_oscillator_bus(self, osc_id, coords, bearing):
         lat, lon = coords
-        lat = max(min(lat, self.freq_range[0][1]), self.freq_range[0][0])
+        lat = max(min(lat, self.freq_range[0][0]), self.freq_range[0][1])
         lon = max(min(lon, self.feedback_range[0][1]), self.feedback_range[0][0])
-        freq = float(np.interp(lat, self.freq_range[0], self.freq_range[1]))
+        freq = float(np.interp(lat, self.freq_range[0][::-1], self.freq_range[1][::-1]))
         feedback = float(np.interp(lon, self.feedback_range[0], self.feedback_range[1]))
         self.set_oscillator_pitch(osc_id, freq)
         self.set_oscillator_pan(osc_id, 1 / 360 * bearing)

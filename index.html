@@ -51,8 +51,11 @@
         }
 
         function updateStops(markerData) {
+            var bounds = [];
+
             markerData.forEach(function(stop) {
                 var latlng = [stop.lat, stop.lon];
+                bounds.push(latlng);
 
                 L.circleMarker(latlng, {
                     color: stop.color,
@@ -60,11 +63,13 @@
                     opacity: 0.4,
                 }).addTo(map).bindTooltip(stop.tooltip);
             });
+
+            if (bounds.length) {
+                map.fitBounds(bounds);
+            }
         }
 
         function updateBuses(markerData) {
-            var bounds = [];
-
             markerData.forEach(function(bus) {
                 var latlng = [bus.lat, bus.lon];
                 var bearing = bus.bearing;
@@ -81,7 +86,6 @@
                     }).addTo(map);
                 }
                 bus_markers[bus.id].bindTooltip(bus.tooltip);
-                bounds.push(latlng);
             });
 
             // Remove bus_markers for buses that are no longer present
@@ -91,10 +95,6 @@
                     delete bus_markers[id];
                 }
             });
-
-            if (bounds.length) {
-                map.fitBounds(bounds);
-            }
         }
 
         // Initialize the map when the page loads

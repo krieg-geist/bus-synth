@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import multiprocessing
 
 import matplotlib
@@ -18,10 +19,15 @@ class BusSynth:
         self.API_KEY = "I7Ozj1IWrV2b2owUdGqJi1CVJ4FFi5xm9fKdj5UB"
         self.BUS_URL = "https://api.opendata.metlink.org.nz/v1/gtfs-rt/vehiclepositions"
         self.STOP_URL = "https://api.opendata.metlink.org.nz/v1/gtfs/stops"
+        self.UPDATE_LOOP = 10
         self.buses = {}
         self.stops = {}
         self.route_color_map = {}
-        self.osc = OscillatorManager()
+
+        self.bounds = [[None, None], [None, None]]
+        self.get_stops(self.fetch_stop_data())
+
+        self.osc = OscillatorManager(self.bounds, self.UPDATE_LOOP)
 
     def fetch_bus_data(self):
         headers = {
@@ -49,24 +55,45 @@ class BusSynth:
 
     def get_stops(self, data):
         for stop in data:
-            self.stops[stop['stop_id']] = (stop['stop_lat'], stop['stop_lon'])
+            stop_id = stop['stop_id']
+            stop_lat = stop['stop_lat']
+            stop_lon = stop['stop_lon']
+            self.stops[stop_id] = (stop_lat, stop_lon)
+
+            # Update bounds
+            if self.bounds[0][0] is None or stop_lat < self.bounds[0][0]:
+                self.bounds[0][0] = stop_lat
+            if self.bounds[0][1] is None or stop_lat > self.bounds[0][1]:
+                self.bounds[0][1] = stop_lat
+            if self.bounds[1][0] is None or stop_lon < self.bounds[1][0]:
+                self.bounds[1][0] = stop_lon
+            if self.bounds[1][1] is None or stop_lon > self.bounds[1][1]:
+                self.bounds[1][1] = stop_lon
+
+    def hash_bus_id(self, bus_id):
+        return int(hashlib.sha256(bus_id.encode()).hexdigest(), 16) % 10**8
 
     def update_buses(self, data):
         current_ids = set()
         for entity in data:
             vehicle_info = entity.get('vehicle')
             if vehicle_info:
-                bus_id = entity.get('id')
+                bus_id = vehicle_info['vehicle']['id']
+                try:
+                    bus_id = int(bus_id)
+                except ValueError:
+                    bus_id = self.hash_bus_id(bus_id)
                 current_ids.add(bus_id)
                 route_id = vehicle_info['trip']['route_id']
                 position = vehicle_info['position']
 
                 if bus_id in self.buses:
                     self.buses[bus_id].update_position(position)
-                    self.osc.set_oscillator_bus(bus_id, self.buses[bus_id].lat_lon, self.buses[bus_id].bearing)
                 else:
                     self.buses[bus_id] = Bus(bus_id, route_id, position)
                     self.osc.add_oscillator(bus_id)
+                self.osc.set_oscillator_bus(bus_id, self.buses[bus_id].lat_lon, self.buses[bus_id].bearing)
+
 
         for bus_id in list(self.buses.keys()):
             if bus_id not in current_ids:
@@ -87,7 +114,7 @@ class BusSynth:
         for id, bus in self.buses.items():
             color = self.route_color_map[bus.route_id]
             marker_data.append({
-                'id': id,
+                'id': str(id),
                 'lat': bus.lat_lon[0],
                 'lon': bus.lat_lon[1],
                 'bearing': bus.bearing,
@@ -118,7 +145,7 @@ class BusSynth:
             self.update_buses(data)
             marker_data = self.generate_marker_data()
             await websocket.send(json.dumps({"type": "bus_update", "data": marker_data}))
-            await asyncio.sleep(10)
+            await asyncio.sleep(self.UPDATE_LOOP)
 
     def run_websocket_server(self):
         asyncio.set_event_loop(asyncio.new_event_loop())
@@ -127,9 +154,6 @@ class BusSynth:
         asyncio.get_event_loop().run_forever()
 
     def main(self):
-        multiprocessing.freeze_support()
-        self.get_stops(self.fetch_stop_data())
-
         Thread(target=self.run_websocket_server, daemon=True).start()
 
         class RequestHandler(http.server.SimpleHTTPRequestHandler):

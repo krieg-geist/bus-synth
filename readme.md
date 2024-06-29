@@ -8,6 +8,7 @@ BusSynth is a real-time bus tracking and sonification system for Wellington, New
 - Interactive map visualization
 - Audio synthesis based on bus positions and movements
 - Display of bus stops
+- Plays an angry blast of noise when a bus is delayed
 
 ## Requirements
 

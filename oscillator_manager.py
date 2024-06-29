@@ -1,3 +1,4 @@
+from asyncio import sleep
 import time
 import multiprocessing
 import numpy as np
@@ -79,13 +80,14 @@ class Group(multiprocessing.Process):
         self._terminated = True
 
     def play_noise(self, pan, cutoff, length):
+        env = Adsr(dur=length)
         noise = Noise()
         filter = Biquad(noise, freq=cutoff, q=1, type=0)
-        panner = Pan(filter, outs=2, pan=pan)
-        env = Adsr(attack=0.01, decay=0.1, sustain=0.7, release=0.1, dur=length, mul=0.5)
-        out = panner * env
+        out = Pan(filter, outs=2, pan=pan)
+        out = out * env  # Apply envelope to the filtered and panned noise
         out.out()
         env.play()
+        time.sleep(length + 0.1)  # Wait for the sound to finish
 
 class OscillatorManager:
     def __init__(self, range=[[-41.4, 174.6], [-41.2, 174.9]], update_loop=10):
@@ -129,7 +131,7 @@ class OscillatorManager:
         lon = min(max(lon, self.lon_range[0]), self.lon_range[1])
         
         pan = float(np.interp(lon, self.lon_range, (0, 1)))
-        cutoff = int(np.interp(lat, self.lat_range, self.freq_range))
+        cutoff = int(np.interp(lat, self.lat_range, (200, 15000)))
         
         self.group.command('play_noise', (pan, cutoff, length))
 

@@ -108,7 +108,7 @@ class BusSynth:
                 
                 timestamp = trip_update.get('timestamp', current_time)
                 stop_id = stop_time_update.get('stop_id')
-                delay = max(1, abs(stop_time_update.get('arrival', {}).get('delay', 0)))
+                delay = max(10, abs(stop_time_update.get('arrival', {}).get('delay', 0)))
                 
                 if stop_id and delay and (timestamp > current_time):
                     # Only add updates that are in the future
@@ -142,7 +142,7 @@ class BusSynth:
                 lat, lon = self.stops[stop_id]
                 
                 # Play noise with delay / 10 as the length
-                noise_length = delay / 10
+                noise_length = delay / 100
                 self.osc.play_noise(lat, lon, noise_length)
             else:
                 print(f'stop_id {stop_id} not found!')
@@ -229,6 +229,7 @@ class BusSynth:
             self.get_updates(self.fetch_updates_data())
             marker_data = self.generate_marker_data()
             await websocket.send(json.dumps({"type": "bus_update", "data": marker_data}))
+            print('.')
             await asyncio.sleep(self.UPDATE_LOOP)
 
     def run_websocket_server(self):

@@ -141,7 +141,7 @@ class BusSynth:
             if stop_id in self.stops:
                 lat, lon = self.stops[stop_id]
                 
-                # Play noise with delay / 10 as the length
+                # Play noise with delay / 100 as the length
                 noise_length = delay / 100
                 self.osc.play_noise(lat, lon, noise_length)
             else:

@@ -4,7 +4,7 @@ BusSynth is a real-time bus tracking and sonification system for Wellington, New
 
 ## Features
 
-- Real-time tracking of Wellington buses
+- Real-time tracking of Wellington buses (ferries and trains show up sometimes also? idk man)
 - Interactive map visualization
 - Audio synthesis based on bus positions and movements
 - Display of bus stops
@@ -55,9 +55,9 @@ Open a web browser and navigate to `http://localhost:8000` to view the bus map.
 
 ## Todo:
 - Make it actually sound good
-- Trigger audio events when busses reach stop
+- ~~Trigger audio events when busses reach stop~~
 - Trigger audio events based on route progress
-- Smooth audio transitions
+- ~~Smooth audio transitions~~
 
 ## Contributing
 

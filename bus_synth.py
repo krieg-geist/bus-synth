@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import multiprocessing
+import time
 
 import matplotlib
 import websockets
@@ -8,7 +9,7 @@ import http.server
 import socketserver
 import json
 import requests
-from threading import Thread
+from threading import Thread, Timer
 from typing import Dict, Any
 import matplotlib.pyplot as plt
 from oscillator_manager import OscillatorManager
@@ -16,18 +17,30 @@ from oscillator_manager import OscillatorManager
 
 class BusSynth:
     def __init__(self):
-        self.API_KEY = "I7Ozj1IWrV2b2owUdGqJi1CVJ4FFi5xm9fKdj5UB"
+        self.API_KEY = "YOUR_API_KEY_HERE"
         self.BUS_URL = "https://api.opendata.metlink.org.nz/v1/gtfs-rt/vehiclepositions"
         self.STOP_URL = "https://api.opendata.metlink.org.nz/v1/gtfs/stops"
+        self.UPDATES_URL = "https://api.opendata.metlink.org.nz/v1/gtfs-rt/tripupdates"
         self.UPDATE_LOOP = 10
         self.buses = {}
         self.stops = {}
+        self.updates = {}
         self.route_color_map = {}
 
         self.bounds = [[None, None], [None, None]]
+
         self.get_stops(self.fetch_stop_data())
 
         self.osc = OscillatorManager(self.bounds, self.UPDATE_LOOP)
+
+        initial_bus_data = self.fetch_bus_data()
+        self.update_buses(initial_bus_data)
+        
+        initial_updates_data = self.fetch_updates_data()
+        self.get_updates(initial_updates_data)
+
+        print(f"Found {len(self.buses)} buses, {len(self.stops)} stops, {len(self.updates)} updates on startup.")
+
 
     def fetch_bus_data(self):
         headers = {
@@ -52,6 +65,18 @@ class BusSynth:
         else:
             print(f"Failed to retrieve stop data: {response.status_code}")
             return []
+    
+    def fetch_updates_data(self):
+        headers = {
+            "accept": "application/json",
+            "x-api-key": self.API_KEY
+        }
+        response = requests.get(self.UPDATES_URL, headers=headers)
+        if response.status_code == 200:
+            return json.loads(response.content).get('entity')
+        else:
+            print(f"Failed to retrieve updates data: {response.status_code}")
+            return []
 
     def get_stops(self, data):
         for stop in data:
@@ -69,12 +94,67 @@ class BusSynth:
                 self.bounds[1][0] = stop_lon
             if self.bounds[1][1] is None or stop_lon > self.bounds[1][1]:
                 self.bounds[1][1] = stop_lon
+    
+    def get_updates(self, data):
+        current_time = int(time.time())
+        new_updates = 0
+        
+        for update in data:
+            update_id = update['id']
+            trip_update = update['trip_update']
+            
+            if 'stop_time_update' in trip_update:
+                stop_time_update = trip_update['stop_time_update']
+                
+                timestamp = trip_update.get('timestamp', current_time)
+                stop_id = stop_time_update.get('stop_id')
+                delay = max(1, abs(stop_time_update.get('arrival', {}).get('delay', 0)))
+                
+                if stop_id and delay and (timestamp > current_time):
+                    # Only add updates that are in the future
+                    if update_id not in self.updates:
+                        new_updates += 1
+                        print(f"New update added: ID {update_id}, Stop {stop_id}, Delay {delay}")
+                    
+                    self.updates[update_id] = {
+                        'timestamp': timestamp,
+                        'stop_id': stop_id,
+                        'delay': delay
+                    }
+                    
+                    # Calculate when to trigger the update
+                    trigger_time = timestamp - current_time
+                    
+                    # Set a timer to call send_update
+                    Timer(trigger_time, self.send_update, args=[update_id]).start()
+        
+        if new_updates > 0:
+            print(f"Added {new_updates} new updates. Total updates: {len(self.updates)}")
+
+    def send_update(self, update_id):
+        if update_id in self.updates:
+            update = self.updates[update_id]
+            stop_id = update['stop_id']
+            delay = update['delay']
+
+            # Get the lat/lon of the corresponding stop
+            if stop_id in self.stops:
+                lat, lon = self.stops[stop_id]
+                
+                # Play noise with delay / 10 as the length
+                noise_length = delay / 10
+                self.osc.play_noise(lat, lon, noise_length)
+            else:
+                print(f'stop_id {stop_id} not found!')
+            # Remove the update from the dictionary
+            del self.updates[update_id]
 
     def hash_bus_id(self, bus_id):
         return int(hashlib.sha256(bus_id.encode()).hexdigest(), 16) % 10**8
 
     def update_buses(self, data):
         current_ids = set()
+        new_buses = 0
         for entity in data:
             vehicle_info = entity.get('vehicle')
             if vehicle_info:
@@ -92,8 +172,9 @@ class BusSynth:
                 else:
                     self.buses[bus_id] = Bus(bus_id, route_id, position)
                     self.osc.add_oscillator(bus_id)
+                    new_buses += 1
+                    print(f"New bus added: ID {bus_id}, Route {route_id}")
                 self.osc.set_oscillator_bus(bus_id, self.buses[bus_id].lat_lon, self.buses[bus_id].bearing)
-
 
         for bus_id in list(self.buses.keys()):
             if bus_id not in current_ids:
@@ -101,6 +182,9 @@ class BusSynth:
                 self.osc.remove_oscillator(bus_id)
 
         self.update_route_color_map()
+
+        if new_buses > 0:
+            print(f"Added {new_buses} new buses. Total buses: {len(self.buses)}")
 
     def update_route_color_map(self):
         unique_routes = set(bus.route_id for bus in self.buses.values())
@@ -141,8 +225,8 @@ class BusSynth:
         stop_markers = self.generate_stop_marker_data()
         await websocket.send(json.dumps({"type": "stop_update", "data": stop_markers}))
         while True:
-            data = self.fetch_bus_data()
-            self.update_buses(data)
+            self.update_buses(self.fetch_bus_data())
+            self.get_updates(self.fetch_updates_data())
             marker_data = self.generate_marker_data()
             await websocket.send(json.dumps({"type": "bus_update", "data": marker_data}))
             await asyncio.sleep(self.UPDATE_LOOP)
@@ -186,6 +270,6 @@ class Bus:
         return f"Bus(id={self.id}, route_id={self.route_id}, position={self.lat_lon})"
 
 if __name__ == '__main__':
-    multiprocessing.freeze_support()
+    multiprocessing.freeze_support() # idk why this needs to be here but windows shits the bed without it
     bus_synth = BusSynth()
     bus_synth.main()

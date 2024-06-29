@@ -1,7 +1,7 @@
 import time
 import multiprocessing
 import numpy as np
-from pyo import Server, SineLoop, Pan, SigTo
+from pyo import *
 
 class Oscillator:
     def __init__(self, freq=440, feedback=0.1, mul=0.005, pan=0.5, loop_rate=10):
@@ -61,6 +61,10 @@ class Group(multiprocessing.Process):
                     if osc_id in self.oscillators:
                         param = {'set_pitch': 'freq', 'set_amplitude': 'amp', 'set_pan': 'pan', 'set_feedback': 'feedback'}[command]
                         self.oscillators[osc_id].set(**{param: value})
+                elif command == 'play_noise':
+                    pan, cutoff, length = args
+                    self.play_noise(pan, cutoff, length)
+        
             except multiprocessing.queues.Empty:
                 time.sleep(0.001)
 
@@ -74,13 +78,23 @@ class Group(multiprocessing.Process):
     def stop(self):
         self._terminated = True
 
+    def play_noise(self, pan, cutoff, length):
+        noise = Noise()
+        filter = Biquad(noise, freq=cutoff, q=1, type=0)
+        panner = Pan(filter, outs=2, pan=pan)
+        env = Adsr(attack=0.01, decay=0.1, sustain=0.7, release=0.1, dur=length, mul=0.5)
+        out = panner * env
+        out.out()
+        env.play()
+
 class OscillatorManager:
     def __init__(self, range=[[-41.4, 174.6], [-41.2, 174.9]], update_loop=10):
         multiprocessing.freeze_support()
         self.group = Group()
         self.group.start()
-        self.freq_range = ((range[0][0], range[0][1]), (50, 10000))
-        self.feedback_range = ((range[1][0], range[1][1]), (0.0, 1.0))
+        self.lat_range = (range[0][0], range[0][1])
+        self.lon_range = (range[1][0], range[1][1])
+        self.freq_range = (50, 10000)
 
     def add_oscillator(self, osc_id, freq=440, feedback=0.1):
         self.group.command('add', (osc_id, freq, feedback))
@@ -102,15 +116,22 @@ class OscillatorManager:
 
     def set_oscillator_bus(self, osc_id, coords, bearing):
         lat, lon = coords
-        lat = min(max(lat, self.freq_range[0][0]), self.freq_range[0][1])
-        lon = min(max(lon, self.feedback_range[0][0]), self.feedback_range[0][1])
-        freq = float(np.interp(lat, self.freq_range[0], self.freq_range[1]))
-        feedback = float(np.interp(lon, self.feedback_range[0], self.feedback_range[1]))
+        lat = min(max(lat, self.lat_range[0]), self.lat_range[1])
+        lon = min(max(lon, self.lon_range[0]), self.lon_range[1])
+        freq = int(np.interp(lon, self.lon_range, self.freq_range))
+        feedback = float(np.interp(lat, self.lat_range, (0, 1)))
         self.set_oscillator_pitch(osc_id, freq)
         self.set_oscillator_pan(osc_id, 1 / 360 * bearing)
         self.set_oscillator_feedback(osc_id, feedback)
     
-
+    def play_noise(self, lat, lon, length):
+        lat = min(max(lat, self.lat_range[0]), self.lat_range[1])
+        lon = min(max(lon, self.lon_range[0]), self.lon_range[1])
+        
+        pan = float(np.interp(lon, self.lon_range, (0, 1)))
+        cutoff = int(np.interp(lat, self.lat_range, self.freq_range))
+        
+        self.group.command('play_noise', (pan, cutoff, length))
 
     def quit(self):
         self.group.stop()

@@ -81,7 +81,7 @@ class Group(multiprocessing.Process):
 
     def play_noise(self, pan, cutoff, length):
         env = Adsr(dur=length)
-        noise = Noise()
+        noise = Noise(mul=0.7)
         filter = Biquad(noise, freq=cutoff, q=1, type=0)
         out = Pan(filter, outs=2, pan=pan)
         out = out * env  # Apply envelope to the filtered and panned noise

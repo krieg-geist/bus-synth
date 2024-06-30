@@ -5,7 +5,7 @@ import numpy as np
 from pyo import *
 
 class Oscillator:
-    def __init__(self, freq=440, feedback=0.1, mul=0.01, pan=0.5, loop_rate=10):
+    def __init__(self, freq=440, feedback=0.1, mul=0.02, pan=0.5, loop_rate=10):
         self.freq = SigTo(freq, time=loop_rate)
         self.feedback = SigTo(feedback, time=loop_rate)
         self.mul = SigTo(mul, time=loop_rate)

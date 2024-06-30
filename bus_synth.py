@@ -189,7 +189,7 @@ class BusSynth:
     def update_route_color_map(self):
         unique_routes = set(bus.route_id for bus in self.buses.values())
         if unique_routes != set(self.route_color_map.keys()):
-            colormap = plt.cm.get_cmap('tab20', len(unique_routes))
+            colormap = matplotlib.pyplot.get_cmap('tab20', len(unique_routes))
             colors = [colormap(i) for i in range(len(unique_routes))]
             self.route_color_map = {route: colors[i] for i, route in enumerate(unique_routes)}
 
@@ -209,7 +209,7 @@ class BusSynth:
 
     def generate_stop_marker_data(self):
         marker_data = []
-        colormap = plt.cm.get_cmap('tab20', len(self.stops))
+        colormap =  matplotlib.pyplot.get_cmap('tab20', len(self.stops))
         for idx, (id, latlon) in enumerate(self.stops.items()):
             color = colormap(idx)
             marker_data.append({

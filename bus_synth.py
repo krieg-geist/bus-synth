@@ -106,7 +106,7 @@ class BusSynth:
             if 'stop_time_update' in trip_update:
                 stop_time_update = trip_update['stop_time_update']
                 
-                timestamp = trip_update.get('timestamp', current_time)
+                timestamp = stop_time_update.get('arrival', {}).get('time', 0)
                 stop_id = stop_time_update.get('stop_id')
                 delay = max(10, abs(stop_time_update.get('arrival', {}).get('delay', 0)))
                 

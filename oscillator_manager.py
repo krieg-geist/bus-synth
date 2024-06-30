@@ -5,7 +5,7 @@ import numpy as np
 from pyo import *
 
 class Oscillator:
-    def __init__(self, freq=440, feedback=0.1, mul=0.005, pan=0.5, loop_rate=10):
+    def __init__(self, freq=440, feedback=0.1, mul=0.01, pan=0.5, loop_rate=10):
         self.freq = SigTo(freq, time=loop_rate)
         self.feedback = SigTo(feedback, time=loop_rate)
         self.mul = SigTo(mul, time=loop_rate)
@@ -81,7 +81,7 @@ class Group(multiprocessing.Process):
 
     def play_noise(self, pan, cutoff, length):
         env = Adsr(dur=length)
-        noise = Noise(mul=0.7)
+        noise = Noise(mul=0.5)
         filter = Biquad(noise, freq=cutoff, q=1, type=0)
         out = Pan(filter, outs=2, pan=pan)
         out = out * env  # Apply envelope to the filtered and panned noise

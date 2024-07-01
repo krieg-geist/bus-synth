@@ -6,6 +6,7 @@ from pyo import *
 
 class Oscillator:
     def __init__(self, freq=440, feedback=0.1, mul=0.02, pan=0.5, loop_rate=10):
+        # SigTo lets us gradually blend to the new setting over a specified length of time
         self.freq = SigTo(freq, time=loop_rate)
         self.feedback = SigTo(feedback, time=loop_rate)
         self.mul = SigTo(mul, time=loop_rate)
@@ -80,6 +81,7 @@ class Group(multiprocessing.Process):
         self._terminated = True
 
     def play_noise(self, pan, cutoff, length):
+        # This should be threaded or maybe rethought entirely
         env = Adsr(dur=length)
         noise = Noise(mul=0.5)
         filter = Biquad(noise, freq=cutoff, q=1, type=0)
@@ -117,6 +119,7 @@ class OscillatorManager:
         self.group.command('set_pan', (osc_id, pan))
 
     def set_oscillator_bus(self, osc_id, coords, bearing):
+        # These could probably be mapped a bit more sensibly
         lat, lon = coords
         lat = min(max(lat, self.lat_range[0]), self.lat_range[1])
         lon = min(max(lon, self.lon_range[0]), self.lon_range[1])

@@ -28,7 +28,7 @@ BusSynth is a real-time bus tracking and sonification system for Wellington, New
 cd bus-synth
 2. Install the required packages:
 `pip install -r requirements.txt`
-3. Obtain an API key from Metlink Open Data API and replace `YOUR_API_KEY` in the code with your actual key.
+3. Obtain an API key from Metlink Open Data API and replace `METLINK_API_KEY` in the code with your actual key.
 
 ## Usage
 

@@ -14,6 +14,7 @@ from typing import Dict, Any
 import matplotlib.pyplot as plt
 from oscillator_manager import OscillatorManager
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 

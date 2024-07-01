@@ -4,3 +4,4 @@ asyncio
 matplotlib
 websockets
 requests
+python-dotenv
